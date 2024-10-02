@@ -1,30 +1,29 @@
-class UserAccount {
+
+
+class AuthenticationResult {
   final String displayname;
   final String login;
-  final String? password;
+  final String token;
 
-  UserAccount({
+  AuthenticationResult({
     required this.displayname,
     required this.login,
-    this.password,
+    required this.token,
   });
 
   toMap() {
     return {
       'displayname': displayname,
       'login': login,
+      'token': token,
     };
   }
 
   static fromMap(Map<String, dynamic> map) {
-    return UserAccount(
+    return AuthenticationResult(
       displayname: map['displayname'],
       login: map['login'],
-      password: map['password'],
+      token: map['token'],
     );
   }
-
-
-
-
 }

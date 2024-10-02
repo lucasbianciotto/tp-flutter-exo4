@@ -1,7 +1,12 @@
+import 'package:exo4/pages/AddCarPage.dart';
 import 'package:exo4/pages/LoginPage.dart';
+import 'package:exo4/services/CarAPI.dart';
 import 'package:exo4/services/LoginState.dart';
+import 'package:exo4/services/UserAccountRoutes.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
+import 'model/Car.dart';
 
 void main() {
   runApp(ChangeNotifierProvider(
@@ -44,6 +49,186 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  Future<List<Car>>? cars;
+
+  initState() {
+    super.initState();
+    _loadCars();
+  }
+
+  Future<void> _loadCars() async {
+    try {
+      LoginState loginState = Provider.of<LoginState>(context, listen: false);
+      String token = loginState.getToken()!;
+
+      // Rafraîchir le token
+      String newToken = await UserAccountRoutes.refreshToken(token);
+
+      // Mettre à jour le token dans l'état de connexion
+      loginState.setToken(newToken);
+
+      // Récupérer les voitures avec le nouveau token
+      List<Car> carList = await CarAPI.getAll(newToken);
+
+      // Mettre à jour l'état avec la liste des voitures
+      setState(() {
+        cars = Future.value(carList);
+      });
+    } catch (e) {
+      print("Erreur lors du chargement des voitures: $e");
+      setState(() {
+        cars = Future.error("Erreur lors du chargement des voitures");
+      });
+    }
+  }
+
+  _deleteCar(int id) async {
+    LoginState loginState = Provider.of<LoginState>(context, listen: false);
+    String token = loginState.getToken()!;
+
+    final newToken = await UserAccountRoutes.refreshToken(token);
+
+    Provider.of<LoginState>(context, listen: false).setToken(newToken);
+
+    return showDialog(context: context, builder: (context) {
+      return AlertDialog(
+        title: const Text('Delete car'),
+        content: const Text('Are you sure you want to delete this car?'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+            },
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              CarAPI.deleteCar(newToken!, id).then((value) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text("Car deleted"),
+                  ),
+                );
+                Navigator.pop(context);
+                setState(() {
+                  cars = CarAPI.getAll(newToken);
+                });
+              }).catchError((error) {
+                print(error);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text("Failed to delete car"),
+                  ),
+                );
+              });
+            },
+            child: const Text('Delete'),
+          ),
+        ],
+      );
+    });
+  }
+
+  _editCar(Car car) {
+    final _formKey = GlobalKey<FormState>();
+
+    Car newCar = Car(
+      id: car.id,
+      make: car.make,
+      model: car.model,
+      isrunning: car.isrunning,
+      price: car.price,
+      builddate: car.builddate,
+    );
+
+    return showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Edit car'),
+          content: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  initialValue: car.make,
+                  decoration: const InputDecoration(labelText: 'Make'),
+                  onSaved: (value) {
+                    newCar.make = value!;
+                  },
+                ),
+                TextFormField(
+                  initialValue: car.model,
+                  decoration: const InputDecoration(labelText: 'Model'),
+                  onSaved: (value) {
+                    newCar.model = value!;
+                  },
+                ),
+                SwitchListTile(
+                  title: const Text('Is running'),
+                  value: car.isrunning,
+                  onChanged: (value) {
+                    newCar.isrunning = value;
+                  },
+                ),
+                TextFormField(
+                  initialValue: car.price.toString(),
+                  decoration: const InputDecoration(labelText: 'Price'),
+                  onSaved: (value) {
+                    newCar.price = double.parse(value!);
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () async {
+                if (!_formKey.currentState!.validate()) return;
+
+                _formKey.currentState!.save();
+
+                LoginState loginState = Provider.of<LoginState>(context, listen: false);
+                String token = loginState.getToken()!;
+
+                final newToken = await UserAccountRoutes.refreshToken(token);
+
+                Provider.of<LoginState>(context, listen: false).setToken(newToken);
+
+                CarAPI.editCar(newToken, newCar).then((value) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text("Car updated"),
+                    ),
+                  );
+                  Navigator.pop(context);
+                  setState(() {
+                    cars = CarAPI.getAll(newToken);
+                  });
+                }).catchError((error) {
+                  print(error);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text("Failed to update car"),
+                    ),
+                  );
+                });
+
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -52,8 +237,87 @@ class _MyHomePageState extends State<MyHomePage> {
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: Text(widget.title),
       ),
-      body: const Center(
-        child: Text("Hello World"),
+      drawer: Drawer(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            ListTile(
+              title: const Text('Home'),
+              onTap: () {
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              title: const Text('Add a car'),
+              onTap: () async {
+                Car? newCar = await Navigator.push(context, MaterialPageRoute(builder: (context) => const AddCarPage()));
+
+                if (newCar != null) {
+                  setState(() {
+                    _loadCars();
+                  });
+                }
+              },
+            ),
+            ListTile(
+              title: const Text('Sign out'),
+              onTap: () {
+                final loginState = Provider.of<LoginState>(context, listen: false);
+                loginState.disconnect();
+              },
+            ),
+          ],
+        ),
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Expanded(
+              child: FutureBuilder<List<Car>>(
+                future: cars,
+                builder: (context, snapshot) {
+                  if (snapshot.hasData) {
+                    return ListView.builder(
+                      itemCount: snapshot.data!.length,
+                      itemBuilder: (context, index) {
+                        Car car = snapshot.data![index];
+                        return ListTile(
+                          title: Text(car.make + ' ' + car.model),
+                          subtitle: Text('${car.price.toStringAsFixed(2)}€'),
+                          trailing: SizedBox(
+                            width: 120, // Définir une largeur fixe pour la ligne
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.edit),
+                                  onPressed: () {
+                                    _editCar(car);
+                                  },
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete),
+                                  onPressed: () {
+                                    _deleteCar(car.id!);
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  } else if (snapshot.hasError) {
+                    return Text("${snapshot.error}");
+                  } else {
+                    return const CircularProgressIndicator();
+                  }
+                },
+              ),
+            )
+          ],
+        ),
       ),
     );
   }
