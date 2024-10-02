@@ -29,7 +29,7 @@ class MyApp extends StatelessWidget {
       home: Consumer<LoginState>(
         builder: (context, loginState, child) {
           if (loginState.connected()) {
-            return const MyHomePage(title: "Home");
+            return const MyHomePage(title: "Vehicles");
           } else {
             return const LoginPage();
           }
@@ -285,6 +285,7 @@ class _MyHomePageState extends State<MyHomePage> {
                         return ListTile(
                           title: Text(car.make + ' ' + car.model),
                           subtitle: Text('${car.price.toStringAsFixed(2)}€'),
+                          leading: Icon(car.isrunning ? Icons.directions_car : Icons.directions_car_filled, color: car.isrunning ? Colors.green : Colors.red),
                           trailing: SizedBox(
                             width: 120, // Définir une largeur fixe pour la ligne
                             child: Row(
