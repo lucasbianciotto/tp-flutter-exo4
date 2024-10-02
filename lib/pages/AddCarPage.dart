@@ -76,6 +76,7 @@ class _AddCarPageState extends State<AddCarPage> {
           child: ListView(
             children: [
               TextFormField(
+                autofocus: true,
                 decoration: const InputDecoration(labelText: "Make"),
                 onSaved: (value) => make = value!,
                 validator: (value) {

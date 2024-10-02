@@ -152,28 +152,38 @@ class _MyHomePageState extends State<MyHomePage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextFormField(
-                  initialValue: car.make,
+                  autofocus: true,
+                  initialValue: newCar.make,
                   decoration: const InputDecoration(labelText: 'Make'),
                   onSaved: (value) {
                     newCar.make = value!;
                   },
                 ),
                 TextFormField(
-                  initialValue: car.model,
+                  initialValue: newCar.model,
                   decoration: const InputDecoration(labelText: 'Model'),
                   onSaved: (value) {
                     newCar.model = value!;
                   },
                 ),
-                SwitchListTile(
-                  title: const Text('Is running'),
-                  value: car.isrunning,
-                  onChanged: (value) {
-                    newCar.isrunning = value;
+                FormField(
+                  builder: (FormFieldState<bool> state) {
+                    return Row(
+                      children: [
+                        const Text('Is running: '),
+                        Switch(
+                          value: newCar.isrunning,
+                          onChanged: (value) {
+                            state.didChange(value);
+                            newCar.isrunning = value!;
+                          },
+                        ),
+                      ],
+                    );
                   },
                 ),
                 TextFormField(
-                  initialValue: car.price.toString(),
+                  initialValue: newCar.price.toStringAsFixed(2),
                   decoration: const InputDecoration(labelText: 'Price'),
                   onSaved: (value) {
                     newCar.price = double.parse(value!);
@@ -257,6 +267,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     _loadCars();
                   });
                 }
+                Navigator.pop(context);
               },
             ),
             ListTile(
